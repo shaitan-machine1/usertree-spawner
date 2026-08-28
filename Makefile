@@ -1,5 +1,5 @@
 PREFIX ?= /usr
-SBINDIR ?= $(PREFIX)/sbin
+BINDIR ?= $(PREFIX)/bin
 LIBEXECDIR ?= $(PREFIX)/libexec
 PAMDIR ?= $(PREFIX)/lib/security
 SYSCONFDIR ?= /etc
@@ -17,7 +17,7 @@ test:
 
 install: all
 	install -Dm755 target/release/usertree-spawnerd \
-		$(DESTDIR)$(SBINDIR)/usertree-spawnerd
+		$(DESTDIR)$(BINDIR)/usertree-spawnerd
 	install -Dm755 target/release/usertree-spawner-supervisor \
 		$(DESTDIR)$(LIBEXECDIR)/usertree-spawner-supervisor
 	install -Dm755 target/release/libpam_usertree_spawner.so \

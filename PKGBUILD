@@ -1,7 +1,7 @@
 pkgbase=usertree-spawner
 pkgname=('usertree-spawner' 'usertree-spawner-backend-s6' 'usertree-spawner-s6')
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc='Elogind-specific per-user service-manager launcher and lifecycle supervisor'
 arch=('x86_64')
 url='https://github.com/shaitan-machine1/usertree-spawner'
@@ -29,7 +29,7 @@ package_usertree-spawner() {
 
     cd "$pkgbase-$pkgver"
     install -Dm755 target/release/usertree-spawnerd \
-        "$pkgdir/usr/sbin/usertree-spawnerd"
+        "$pkgdir/usr/bin/usertree-spawnerd"
     install -Dm755 target/release/usertree-spawner-supervisor \
         "$pkgdir/usr/libexec/usertree-spawner-supervisor"
     install -Dm755 target/release/libpam_usertree_spawner.so \

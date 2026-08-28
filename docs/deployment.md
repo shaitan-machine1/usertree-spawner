@@ -40,7 +40,7 @@ sudo pacman -U packages/usertree-spawner-[0-9]*-x86_64.pkg.tar.zst \
 Important installed paths are:
 
 ```text
-/usr/sbin/usertree-spawnerd
+/usr/bin/usertree-spawnerd
 /usr/libexec/usertree-spawner-supervisor
 /usr/lib/security/pam_usertree_spawner.so
 /usr/libexec/usertree-spawner/backends/s6

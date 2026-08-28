@@ -8,7 +8,7 @@ pkgbase = usertree-spawner
 	makedepends = cargo
 	options = !debug
 	source = usertree-spawner-0.2.0.tar.gz::https://github.com/shaitan-machine1/usertree-spawner/releases/download/v0.2.0/usertree-spawner-0.2.0.tar.gz
-	sha256sums = c2140debcb817ff68cef6355db261cc56132701dea8a65a3de9d2304f2daef70
+	sha256sums = 552e8fb76eb32d797702eadbfc89df1819ac0cb6c07997d955d6904ee1b81e5a
 
 pkgname = usertree-spawner
 	install = usertree-spawner.install

@@ -22,7 +22,8 @@ its service dependency on `elogind`.
 
 ## Install GitHub Release packages
 
-Download package files and `SHA256SUMS` from the official GitHub Release:
+Download package files and `SHA256SUMS` from the official
+[GitHub Releases page](https://github.com/shaitan-machine1/usertree-spawner/releases/latest):
 
 ```sh
 sha256sum -c SHA256SUMS
@@ -37,6 +38,8 @@ repository release page.
 Install `base-devel`, `git`, and Rust/Cargo first:
 
 ```sh
+git clone https://github.com/shaitan-machine1/usertree-spawner.git
+cd usertree-spawner
 ./build.sh --clean && sudo pacman -U ./packages/*.pkg.tar.zst
 ```
 

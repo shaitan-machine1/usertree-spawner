@@ -1,0 +1,8 @@
+pre_remove() {
+    if [ -x /usr/bin/usertree-spawner-pam ]; then
+        /usr/bin/usertree-spawner-pam disable || {
+            echo 'usertree-spawner: refusing to leave a required PAM entry behind' >&2
+            return 1
+        }
+    fi
+}

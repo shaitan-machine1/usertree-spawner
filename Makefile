@@ -5,7 +5,7 @@ PAMDIR ?= $(PREFIX)/lib/security
 SYSCONFDIR ?= /etc
 DESTDIR ?=
 
-.PHONY: all test install install-s6 clean
+.PHONY: all test test-live install install-s6 clean
 
 all:
 	cargo build --release --locked --workspace
@@ -13,7 +13,11 @@ all:
 test:
 	cargo test --locked --workspace
 	cargo clippy --locked --workspace --all-targets -- -D warnings
-	sh -n backends/s6 tests/backends/backend-test
+	cargo fmt --all -- --check
+	sh -n backends/s6-user tests/backends/backend-test usertree-spawner.install
+
+test-live:
+	cargo test --locked --workspace -- --ignored --test-threads=1
 
 install: all
 	install -Dm755 target/release/usertree-spawnerd \
@@ -22,8 +26,10 @@ install: all
 		$(DESTDIR)$(LIBEXECDIR)/usertree-spawner-supervisor
 	install -Dm755 target/release/libpam_usertree_spawner.so \
 		$(DESTDIR)$(PAMDIR)/pam_usertree_spawner.so
-	install -Dm755 backends/s6 \
-		$(DESTDIR)$(LIBEXECDIR)/usertree-spawner/backends/s6
+	install -Dm755 target/release/usertree-spawner-pam \
+		$(DESTDIR)$(BINDIR)/usertree-spawner-pam
+	install -Dm755 backends/s6-user \
+		$(DESTDIR)$(LIBEXECDIR)/usertree-spawner/backends/s6-user
 	install -Dm644 config/config.toml \
 		$(DESTDIR)$(SYSCONFDIR)/usertree-spawner/config.toml
 	install -dm755 $(DESTDIR)$(SYSCONFDIR)/usertree-spawner/backends

@@ -1,15 +1,16 @@
 pkgbase=usertree-spawner
-pkgname=('usertree-spawner' 'usertree-spawner-backend-s6' 'usertree-spawner-s6')
-pkgver=0.1.0
-pkgrel=3
+pkgname=('usertree-spawner' 'usertree-spawner-backend-s6-user' 'usertree-spawner-s6')
+pkgver=0.2.0
+pkgrel=1
 pkgdesc='Elogind-specific per-user service-manager launcher and lifecycle supervisor'
 arch=('x86_64')
 url='https://github.com/shaitan-machine1/usertree-spawner'
 license=('GPL-3.0-only')
 makedepends=('cargo')
 options=('!debug')
-source=("$pkgbase-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+_source_mtime='2026-08-28T00:00:00Z'
+source=("$pkgbase-$pkgver.tar.gz::$url/releases/download/v$pkgver/$pkgbase-$pkgver.tar.gz")
+sha256sums=('c2140debcb817ff68cef6355db261cc56132701dea8a65a3de9d2304f2daef70')
 
 build() {
     cd "$pkgbase-$pkgver"
@@ -23,7 +24,8 @@ check() {
 
 package_usertree-spawner() {
     depends=('elogind' 'gcc-libs' 'glibc' 'pam')
-    optdepends=('usertree-spawner-backend-s6: per-user s6-svscan and s6-rc backend')
+    install=usertree-spawner.install
+    optdepends=('usertree-spawner-backend-s6-user: s6-user per-user service-manager backend')
     backup=('etc/usertree-spawner/config.toml'
             'etc/pam.d/usertree-spawner-manager')
 
@@ -34,6 +36,8 @@ package_usertree-spawner() {
         "$pkgdir/usr/libexec/usertree-spawner-supervisor"
     install -Dm755 target/release/libpam_usertree_spawner.so \
         "$pkgdir/usr/lib/security/pam_usertree_spawner.so"
+    install -Dm755 target/release/usertree-spawner-pam \
+        "$pkgdir/usr/bin/usertree-spawner-pam"
 
     install -Dm644 config/config.toml \
         "$pkgdir/etc/usertree-spawner/config.toml"
@@ -53,21 +57,25 @@ package_usertree-spawner() {
         "$pkgdir/usr/share/licenses/usertree-spawner/LICENSE"
 }
 
-package_usertree-spawner-backend-s6() {
-    pkgdesc='s6-svscan and s6-rc backend for usertree-spawner'
-    depends=('usertree-spawner' 's6-user')
+package_usertree-spawner-backend-s6-user() {
+    pkgdesc='s6-user per-user service-manager backend for usertree-spawner'
+    arch=('any')
+    depends=('usertree-spawner' 's6' 's6-user')
+    conflicts=('usertree-spawner-backend-s6')
+    replaces=('usertree-spawner-backend-s6')
 
     cd "$pkgbase-$pkgver"
-    install -Dm755 backends/s6 \
-        "$pkgdir/usr/libexec/usertree-spawner/backends/s6"
+    install -Dm755 backends/s6-user \
+        "$pkgdir/usr/libexec/usertree-spawner/backends/s6-user"
     install -Dm644 LICENSE \
-        "$pkgdir/usr/share/licenses/usertree-spawner-backend-s6/LICENSE"
+        "$pkgdir/usr/share/licenses/usertree-spawner-backend-s6-user/LICENSE"
 }
 
 package_usertree-spawner-s6() {
     pkgdesc='s6-rc system service definition for usertree-spawner'
+    arch=('any')
     groups=('s6-world')
-    depends=('elogind' 'usertree-spawner' 'usertree-spawner-backend-s6' 's6-base')
+    depends=('usertree-spawner' 's6-base')
     provides=('init-usertree-spawner')
     conflicts=('init-usertree-spawner')
 

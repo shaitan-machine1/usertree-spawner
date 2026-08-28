@@ -1,157 +1,192 @@
 # Deployment
 
-`usertree-spawner` changes the login path and must first be tested on a disposable
-machine with an independent root console. The implementation targets Linux and
+`usertree-spawner` changes the login path. Test it on a disposable Artix machine
+with an independent root console. The implementation is Linux-specific and
 uses pidfds, `SO_PEERCRED`, `SOCK_SEQPACKET`, parent-death signals, and
 `openat2` where available.
 
-## Build and install
+## Package order
 
-For a direct source installation:
+Install `s6-user-projects` first. Then install these packages together:
+
+```text
+usertree-spawner
+usertree-spawner-backend-s6-user
+usertree-spawner-s6
+```
+
+The system integration package depends only on `usertree-spawner` and `s6-base`.
+It deliberately does not force a per-user backend. The core package already
+carries the elogind package dependency; the s6-rc source separately contains
+its service dependency on `elogind`.
+
+## Install GitHub Release packages
+
+Download package files and `SHA256SUMS` from the official GitHub Release:
+
+```sh
+sha256sum -c SHA256SUMS
+sudo pacman -U ./*.pkg.tar.zst
+```
+
+Packages are currently unsigned and should only be obtained from the official
+repository release page.
+
+## Build from source
+
+Install `base-devel`, `git`, and Rust/Cargo first:
+
+```sh
+./build.sh --clean && sudo pacman -U ./packages/*.pkg.tar.zst
+```
+
+The script uses `makepkg --nodeps`, never invokes pacman, and writes
+`packages/SHA256SUMS`. Direct non-package builds remain available:
 
 ```sh
 make test
 make
-make DESTDIR="$pkgdir" install
-```
-
-For standalone Artix packages, use only this repository's build script:
-
-```sh
-./build.sh --clean
-```
-
-It produces `usertree-spawner`, `usertree-spawner-backend-s6`, and
-`usertree-spawner-s6` under `packages/` and prints their complete installation
-command. To build and install all three in one operation:
-
-```sh
-./build.sh --install
-```
-
-Equivalently, after building:
-
-```sh
-sudo pacman -U packages/usertree-spawner-[0-9]*-x86_64.pkg.tar.zst \
-  packages/usertree-spawner-backend-s6-*.pkg.tar.zst \
-  packages/usertree-spawner-s6-*.pkg.tar.zst
 ```
 
 Important installed paths are:
 
 ```text
 /usr/bin/usertree-spawnerd
+/usr/bin/usertree-spawner-pam
 /usr/libexec/usertree-spawner-supervisor
 /usr/lib/security/pam_usertree_spawner.so
-/usr/libexec/usertree-spawner/backends/s6
+/usr/libexec/usertree-spawner/backends/s6-user
 /etc/usertree-spawner/config.toml
 /etc/pam.d/usertree-spawner-manager
+/etc/s6/sv/usertree-spawnerd
 ```
 
-Adjust `PREFIX`, `PAMDIR`, and other Make variables for distribution policy.
-The private supervisor is not intended to be invoked by users.
+## Select a backend explicitly
+
+The installed configuration intentionally has no backend assignment. The
+daemon refuses to start until the administrator edits
+`/etc/usertree-spawner/config.toml` and supplies a valid backend name:
+
+```toml
+backend = "s6-user"
+```
+
+Names must match `[a-z0-9][a-z0-9._-]*` and resolve beneath the fixed trusted
+backend directory `/usr/libexec/usertree-spawner/backends`. Absolute paths,
+slashes, traversal, uppercase characters, and leading dots are rejected.
 
 ## Internal PAM lease
 
 `/etc/pam.d/usertree-spawner-manager` must contain required `pam_elogind` and
-must not recursively include `pam_usertree_spawner`:
+must never include `pam_usertree_spawner` recursively:
 
 ```pam
 session required pam_elogind.so class=background type=unspecified
 ```
 
-The helper also sets `XDG_SESSION_CLASS=background` and
-`XDG_SESSION_TYPE=unspecified` before opening the transaction. This is a
-session-only PAM application: it initializes supplementary groups itself and
-does not dispatch an authentication stack with `pam_setcred`. Startup fails
-unless login1 confirms the expected UID, exact class, service, and runtime
-path. Never change this class to `manager`: manager classes do not pin the
-elogind user.
+The helper verifies the returned UID, runtime path, service, class, and type
+against login1 before starting a backend. Manager classes are not used because
+they do not pin the elogind user.
 
-## Login PAM stacks
+## Start the system daemon
 
-After the daemon is enabled and known to be running, add the module after
-`pam_elogind` in each participating service:
+The system graph is:
+
+```text
+elogind -> usertree-spawnerd -> PAM login
+```
+
+The packaged s6-rc source supplies the first edge:
+
+```sh
+sudo s6 enable usertree-spawnerd
+sudo s6 apply
+sudo s6 live status usertree-spawnerd
+```
+
+Do not activate usersv in PAM until the daemon is confirmed running. On
+shutdown the daemon waits for helpers/managers before elogind is stopped.
+
+## Activate the common Artix PAM stack
+
+Artix SDDM, local, and remote login stacks include
+`/etc/pam.d/system-login`. Activate the module with the packaged editor:
+
+```sh
+sudo usertree-spawner-pam enable
+usertree-spawner-pam status
+```
+
+It atomically inserts exactly one line after `pam_elogind.so`:
 
 ```pam
-session required pam_elogind.so
 session required pam_usertree_spawner.so
 ```
 
-The default module-side timeout is 35 seconds. An administrator can set a
-bounded override, for example:
+The utility is root-only for changes, idempotent, preserves file metadata, and
+fails closed on unsafe or unexpected layouts. To deactivate:
+
+```sh
+sudo usertree-spawner-pam disable
+```
+
+Package removal attempts the same disable operation before deleting the PAM
+module. The project does not edit Artix's optional pambase-owned
+`pam_turnstile.so` entry.
+
+The PAM client timeout defaults to 35 seconds. It must remain greater than
+`login_readiness_timeout_seconds`. A bounded override is supported:
 
 ```pam
 session required pam_usertree_spawner.so timeout=60
 ```
 
-Keep it greater than `login_readiness_timeout_seconds`. Missing
-`XDG_SESSION_ID`, missing `XDG_RUNTIME_DIR`, daemon failure, or backend failure
-returns `PAM_SESSION_ERR`. `pam_sm_close_session` is intentionally a no-op;
-elogind's `SessionRemoved` signal is the logout authority.
+## s6-user backend
 
-Test TTY, SSH, display-manager, lock/unlock, and concurrent login stacks. A
-PAM application may connect as root or after changing to the session user;
-the daemon accepts only root or the UID resolved from the supplied login1
-session.
+The `s6-user` backend:
 
-## System service ordering
+- receives only the sanitized user environment and verified runtime path;
+- obtains runtime and persistent paths from `s6-user paths export`;
+- never constructs or creates `/run/user/$UID`;
+- initializes/synchronizes the private repository;
+- preserves existing service prescriptions;
+- execs the actual `s6-svscan` manager;
+- releases PAM after shallow manager readiness;
+- terminates an asynchronous boot transaction if the manager disappears;
+- requests dependency-aware stop before signaling `s6-svscan`.
 
-The system service graph must have this dependency:
+Runtime directories are selected by `s6 --user` from `XDG_RUNTIME_DIR`.
+Persistent repository, boot database, and store paths are configured by
+s6-user.
 
-```text
-elogind -> usertree-spawnerd -> PAM login services
-```
+## Target-system tests
 
-On shutdown the edge reverses: PAM login services stop first,
-`usertree-spawnerd` stops and waits for its helpers, and elogind stops last.
-
-An s6-rc longrun source is provided in `integration/s6-rc/usertree-spawnerd`.
-Its `dependencies.d/elogind` edge ensures elogind starts first and stops last.
-Install it into the system source store and include it in the normal compiled
-set before enabling any PAM stack that requires the module:
+Run the portable suite first:
 
 ```sh
-make S6_RC_SOURCE_DIR=/etc/s6/sv install-s6
+make test
 ```
 
-Login-service dependency names differ between distributions, so packages must
-add explicit dependencies from their display manager, SSH, and console-login
-targets to `usertree-spawnerd`. Dinit, runit, and OpenRC service definitions are
-left to integration packages; they must enforce the same ordering rather than
-merely launching both processes.
+Then run live login1 tests on Artix:
 
-## s6 backend
+```sh
+make test-live
+```
 
-The included s6 backend retains shallow readiness: PAM proceeds once
-`s6-svscan` has entered its event loop. `s6-user system boot` continues
-asynchronously and a slow or failed user service does not revoke readiness.
-The backend obtains all frontend paths from `s6-user`, never constructs
-`/run/user/$UID`, and avoids replacing boot state while live s6-rc state
-exists.
+Finally verify SDDM, TTY, SSH, concurrent sessions, manager crash/restart,
+last logout, PAM disable/enable, and `loginctl terminate-user`. The full
+checklist is in the s6-user project documentation.
 
-Shutdown first requests `s6-user live stop-everything`, then signals the
-tracked `s6-svscan`. The supervisor applies its configured TERM/KILL fallback
-if graceful shutdown does not finish.
+## Rollback
 
-## Operational checks
+From the root console:
 
-For each test user, verify:
+```sh
+sudo usertree-spawner-pam disable
+sudo s6 disable usertree-spawnerd
+sudo s6 apply
+```
 
-1. a real `Class=user` or `Class=user-early` session starts exactly one helper;
-2. login1 shows a distinct `Service=usertree-spawner-manager`,
-   `Class=background` session;
-3. PAM returns only after backend readiness;
-4. concurrent logins reuse the same manager PID;
-5. closing one of several sessions retains the manager;
-6. final logout stops and reaps the manager before the background session
-   disappears;
-7. killing the manager restarts it while retaining the same background
-   session;
-8. killing the daemon causes helpers to stop their managers and close leases;
-9. restarting the daemon does not overlap old and new managers because of the
-   per-UID lock.
-
-`loginctl terminate-user` and manual runtime-directory deletion are forced
-administrative operations. They cannot guarantee backend ordering in the same
-way as normal final logout.
+Only after PAM has been disabled should the module/core package be removed.
+Forced user termination or manual runtime-directory deletion cannot guarantee
+normal backend shutdown ordering.

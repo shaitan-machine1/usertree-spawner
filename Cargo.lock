@@ -176,7 +176,7 @@ dependencies = [
 
 [[package]]
 name = "usertree-spawner-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "usertree-spawner-protocol",
  "libc",
@@ -187,8 +187,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "usertree-spawner-pam-config"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "libc",
+]
+
+[[package]]
 name = "usertree-spawner-protocol"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "libc",
  "tempfile",
@@ -197,7 +205,7 @@ dependencies = [
 
 [[package]]
 name = "usertree-spawner-supervisor"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "usertree-spawner-core",
@@ -208,7 +216,7 @@ dependencies = [
 
 [[package]]
 name = "usertree-spawnerd"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "usertree-spawner-core",
@@ -522,7 +530,7 @@ dependencies = [
 
 [[package]]
 name = "pam-usertree-spawner"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "usertree-spawner-core",
  "usertree-spawner-protocol",

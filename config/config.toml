@@ -1,0 +1,14 @@
+# Trusted system-wide configuration for usertree-spawner.
+backend = "/usr/libexec/usertree-spawner/backends/s6"
+backend_config_dir = "/etc/usertree-spawner/backends"
+
+# pam_usertree_spawner defaults to a 35-second client-side timeout, leaving a
+# small margin after this daemon/backend deadline.
+login_readiness_timeout_seconds = 30
+graceful_stop_timeout_seconds = 15
+forced_stop_timeout_seconds = 5
+restart_backoff_minimum_milliseconds = 500
+restart_backoff_maximum_seconds = 30
+
+root_eligible = false
+logging_verbosity = "info"

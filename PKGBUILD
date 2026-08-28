@@ -1,7 +1,7 @@
 pkgbase=usertree-spawner
 pkgname=('usertree-spawner' 'usertree-spawner-backend-s6' 'usertree-spawner-s6')
 pkgver=0.1.0
-pkgrel=2
+pkgrel=3
 pkgdesc='Elogind-specific per-user service-manager launcher and lifecycle supervisor'
 arch=('x86_64')
 url='https://github.com/shaitan-machine1/usertree-spawner'
